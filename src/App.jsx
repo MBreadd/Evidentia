@@ -86,19 +86,16 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', syncStateFromUrl);
   }, []); // Solo se ejecuta al montar
 
-  // 2. Actualizar la URL dinámicamente cuando cambia currentView
+
+// 2. Actualizar la URL dinámicamente cuando cambia currentView
   useEffect(() => {
     const currentHash = window.location.hash.replace('#/', '');
     
-    // Si la vista actual es distinta a la URL, empujamos el historial
-    if (currentView !== currentHash) {
-      // Usamos pushState para no disparar el 'hashchange' y crear un bucle
+    // CORRECCIÓN: No modificar la URL si estamos en el proceso de login (tiene access_token)
+    if (currentView !== currentHash && !window.location.hash.includes('access_token')) {
       window.history.pushState(null, '', `#/${currentView}`);
     }
   }, [currentView]);
-  // ==========================================
-  // 2. EFECTO 1: MANEJO DE SESIÓN Y RUTAS
-  // ==========================================
   // ==========================================
   // 2. EFECTO 1: MANEJO DE SESIÓN Y RUTAS
   // ==========================================
@@ -189,7 +186,17 @@ function AppContent() {
 
     fetchChallenges();
   }, []); 
+  // 3. Limpieza automática del token en la URL después de loguearse
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        // Esto elimina el '#access_token=...' de la URL sin recargar la página
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      }
+    });
 
+    return () => subscription.unsubscribe();
+  }, []);
   // ==========================================
   // 4. LÓGICA GLOBAL (Funciones)
   // ==========================================
