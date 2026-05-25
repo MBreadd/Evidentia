@@ -116,25 +116,15 @@ function AppContent() {
 
         if (profile && profile.full_name) {
           setUser({ id: authUser.id, ...profile, email: authUser.email });
-          if (['landing', 'login', 'onboarding_role', 'onboarding_profile'].includes(currentViewRef.current)) {
-            setCurrentView('dashboard');
-            window.location.hash = '#/dashboard';
-          }
+          
+          // FUERZA LA REDIRECCIÓN A DASHBOARD SI ESTAMOS LOGUEADOS
+          setCurrentView('dashboard');
+          window.location.hash = '#/dashboard'; 
         } else {
+          // ... (mantén tu lógica de onboarding aquí)
           const pendingRole = localStorage.getItem('evidentia_pending_role');
           const finalRole = pendingRole || profile?.role; 
-          setOnboardData(prev => ({
-            ...prev,
-            email: authUser.email,
-            name: authUser.user_metadata?.full_name || profile?.full_name || ''
-          }));
-
-          if (finalRole) {
-            setOnboardRole(finalRole);
-            setCurrentView('onboarding_profile'); 
-          } else {
-            setCurrentView('onboarding_role');
-          }
+          // ... (resto de tu lógica de onboarding)
         }
       } catch (err) {
         console.error("Error:", err);
@@ -143,22 +133,25 @@ function AppContent() {
       }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) checkProfileAndRoute(session.user);
-      else setIsCheckingSession(false);
-    });
-
+    // Escuchar el cambio de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
         checkProfileAndRoute(session.user);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setCurrentView('landing');
+        window.location.hash = ''; // Limpiar hash al salir
       }
     });
 
+    // Sesión inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) checkProfileAndRoute(session.user);
+      else setIsCheckingSession(false);
+    });
+
     return () => subscription.unsubscribe();
-  }, []); 
+  }, []);
 
   // ==========================================
   // 3. EFECTO 2: CARGA DE RETOS UNIFICADA
