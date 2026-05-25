@@ -136,7 +136,7 @@ export default function DashboardView({
         const formatted = data.map(sub => ({
           id: sub.id,
           challenge_goal: sub.challenges?.title,
-          company: sub.challenges?.profiles?.full_name,
+          organization: sub.challenges?.profiles?.full_name,
           status: sub.status,
           score: sub.score,
           date: new Date(sub.submitted_at).toLocaleDateString()
@@ -194,7 +194,7 @@ export default function DashboardView({
 
   // --- Sub-componente: Render Arena ---
   const renderArenaDashboard = () => {
-    const isOrganization = user?.role === 'organization' || user?.role === 'company';
+    const isOrganization = user?.role === 'organization';
 
     return (
       <div>
@@ -231,7 +231,7 @@ export default function DashboardView({
             )}
           </div>
           <h3 className="text-xl font-black text-gray-950 dark:text-gray-50 text-center mb-1">
-            {user?.full_name || 'Usuario Aura'}
+            {user?.full_name || 'Usuario Evidentia'}
           </h3>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-6 text-center">
             {user?.role === 'student' ? user?.career || 'Estudiante' : 'Empresa / ONG'}
@@ -239,7 +239,7 @@ export default function DashboardView({
           
           {user?.role === 'student' && (
             <div className="w-full bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 text-center border border-blue-200 dark:border-blue-800/50 mb-6 shadow-none">
-              <span className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-widest">Aura Score</span>
+              <span className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-widest">Evidentia Score</span>
               <div className="text-4xl font-black text-blue-950 dark:text-blue-400 mt-1">{user?.reputation_score || 0}</div>
             </div>
           )}
@@ -259,7 +259,7 @@ export default function DashboardView({
             {currentTab === 'challenges' && 'Retos Activos'}
             {currentTab === 'practice' && 'Práctica'}
             {currentTab === 'top' && 'Top Semanal'}
-            {currentTab === 'arena' && 'AURA ARENA'}
+            {currentTab === 'arena' && 'EVIDENTIA ARENA'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-xs">
             {currentTab === 'challenges' && 'Desafíos reales de empresas buscando resolver problemas'}
@@ -279,12 +279,12 @@ export default function DashboardView({
         {currentTab === 'top' && (
           <div className="bg-blue-950 dark:bg-blue-900 p-6 rounded-xl text-white shadow-none border border-blue-900 dark:border-blue-800 mb-6">
             <h2 className="text-2xl font-bold mb-2 flex items-center gap-2"><Flame size={28}/> Top Semanal</h2>
-            <p className="text-blue-100 dark:text-blue-200 max-w-xl text-sm">Los retos más populares y competidos de la semana. Destacar aquí te dará un multiplicador x2 en tu Aura Score y visibilidad prioritaria con los reclutadores.</p>
+            <p className="text-blue-100 dark:text-blue-200 max-w-xl text-sm">Los retos más populares y competidos de la semana. Destacar aquí te dará un multiplicador x2 en tu Evidentia Score y visibilidad prioritaria con los reclutadores.</p>
           </div>
         )}
 
         {/* ZONA EXCLUSIVA PARA EMPRESAS: PANEL DE GESTIÓN */}
-        {user?.role === 'company' && currentTab === 'challenges' && (
+        {user?.role === 'organization' && currentTab === 'challenges' && (
           <div className="space-y-6 mb-10">
             
             {/* Cabecera del Panel */}
@@ -349,7 +349,7 @@ export default function DashboardView({
                     </div>
                   </div>
                   <button type="submit" disabled={isSubmitting} className={`w-full text-white p-4 rounded-lg font-bold transition shadow-none ${isSubmitting ? 'bg-blue-500 dark:bg-blue-800 cursor-not-allowed' : 'bg-blue-950 dark:bg-blue-900 hover:bg-blue-900 dark:hover:bg-blue-800 hover:-translate-y-0.5'}`}>
-                    {isSubmitting ? 'Publicando...' : 'Publicar Reto en Aura'}
+                    {isSubmitting ? 'Publicando...' : 'Publicar Reto en Evidentia'}
                   </button>
                 </form>
               </div>

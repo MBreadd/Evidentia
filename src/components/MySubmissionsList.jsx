@@ -50,7 +50,7 @@ export default function MySubmissionsList({ submissions }) {
                     {sub.challenge_goal}
                   </td>
                   <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
-                    {sub.company}
+                    {sub.organization}
                   </td>
                   <td className="px-6 py-4 text-gray-500 dark:text-gray-500 font-medium">
                     {sub.date}

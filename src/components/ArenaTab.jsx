@@ -303,7 +303,7 @@ export default function ArenaTab({ user, setCurrentView, setSelectedArenaEvent }
       <div className="bg-gradient-to-r from-blue-900 to-blue-950 p-8 rounded-xl text-white shadow-none border border-blue-800 relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-3xl font-black mb-2 flex items-center gap-2">
-            <Flame size={32} /> AURA ARENA
+            <Flame size={32} /> EVIDENTIA ARENA
           </h2>
           <p className="text-blue-100 max-w-xl">
             Eventos con límite de tiempo. Compite solo, con tus amigos o en{' '}

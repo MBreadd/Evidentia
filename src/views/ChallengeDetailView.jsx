@@ -38,10 +38,10 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
   // Datos del Reto
   const [orgName, setOrgName] = useState(
-    selectedChallenge?.profiles?.full_name || selectedChallenge?.company || 'Organización'
+    selectedChallenge?.profiles?.full_name || selectedChallenge?.organization || 'Organización'
   );
 
-  const isOrganizationUser = user?.role === 'organization' || user?.role === 'company';
+  const isOrganizationUser = user?.role === 'organization' || user?.role === 'organization';
   const canManageChallenge = isOrganizationUser && !!selectedChallenge?.organization_id && selectedChallenge.organization_id === user?.id;
   const tags = selectedChallenge?.tech_stack ? selectedChallenge.tech_stack.split(',').map(t => t.trim()).filter(Boolean) : [];
 
@@ -70,7 +70,7 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
     setEvaluationsMap(map);
   }, []);
 
-  const loadCompanySubmissions = useCallback(async () => {
+  const loadorganizationSubmissions = useCallback(async () => {
     if (!canManageChallenge || !selectedChallenge?.id) return;
     setLoadingSubmissions(true);
     try {
@@ -152,7 +152,7 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
     check();
   }, [user, selectedChallenge]);
 
-  useEffect(() => { loadCompanySubmissions(); }, [loadCompanySubmissions]);
+  useEffect(() => { loadorganizationSubmissions(); }, [loadorganizationSubmissions]);
 
   // --- MANEJADORES DE EVENTOS ---
   const handleFileChange = (e) => {
@@ -443,7 +443,7 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">Panel de Evaluaciones</h2>
                   <p className="text-sm text-gray-500">Selecciona una entrega para revisar los detalles y calificar.</p>
                 </div>
-                <button onClick={() => loadCompanySubmissions()} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2">
+                <button onClick={() => loadorganizationSubmissions()} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2">
                   Actualizar Datos
                 </button>
               </div>

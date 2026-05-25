@@ -53,7 +53,7 @@ function AppContent() {
   const [onboardRole, setOnboardRole] = useState(null); 
   const [onboardData, setOnboardData] = useState({ 
     email: '', password: '', 
-    name: '', preferredTracks: [], avatar: null, career: '', bio: '', linkedin: '', github: '', industry: '', companySize: '', website: '' 
+    name: '', preferredTracks: [], avatar: null, career: '', bio: '', linkedin: '', github: '', industry: '', organizationSize: '', website: '' 
   });
   const [newArenaEvent, setNewArenaEvent] = useState({ title: '', tracks: [], date: '', description: '', teamMode: 'both' });
   
@@ -107,16 +107,30 @@ function AppContent() {
   // ==========================================
   useEffect(() => {
     const checkProfileAndRoute = async (authUser) => {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .maybeSingle();
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .maybeSingle();
 
-        if (profile && profile.full_name) {
-          setUser({ id: authUser.id, ...profile, email: authUser.email });
-          
+    // ← AÑADIR ESTO
+    let organizationIds = [];
+      if (profile?.role === 'organization') {
+        const { data: memberships } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', authUser.id);
+        organizationIds = memberships?.map(m => m.organization_id) || [];
+      }
+
+      if (profile && profile.full_name) {
+        setUser({ 
+          id: authUser.id, 
+          ...profile, 
+          email: authUser.email,
+          organizationIds, // ← AÑADIR ESTO
+        });
           // Solo redirigir si el usuario no estaba ya en una vista de configuración
           if (['landing', 'login'].includes(currentViewRef.current)) {
             setCurrentView('dashboard');
@@ -203,14 +217,20 @@ function AppContent() {
     fetchChallenges();
   }, []); 
   // 3. Limpieza automática del token en la URL después de loguearse
-  useEffect(() => {
+  seEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        // Esto elimina el '#access_token=...' de la URL sin recargar la página
-        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        // Esperamos un tick para que checkProfileAndRoute termine primero
+        setTimeout(() => {
+          if (!window.location.hash.includes('access_token')) return;
+          window.history.replaceState(
+            {}, 
+            document.title, 
+            window.location.pathname + window.location.search
+          );
+        }, 500);
       }
     });
-
     return () => subscription.unsubscribe();
   }, []);
   // ==========================================
@@ -221,7 +241,7 @@ function AppContent() {
     setUser(null);
     setCurrentView('landing'); 
     setLoginForm({ email: '', password: '' });
-    setOnboardData({ email: '', password: '', name: '', preferredTracks: [], avatar: null, career: '', bio: '', linkedin: '', github: '', industry: '', companySize: '', website: '' });
+    setOnboardData({ email: '', password: '', name: '', preferredTracks: [], avatar: null, career: '', bio: '', linkedin: '', github: '', industry: '', organizationSize: '', website: '' });
     setOnboardRole(null);
     setCurrentTab('challenges');
   };

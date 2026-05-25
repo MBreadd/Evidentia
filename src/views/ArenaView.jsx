@@ -111,7 +111,7 @@ export function ApplyArenaView({
       <div className="mb-8 border-b border-gray-200 dark:border-gray-800 pb-6">
         <span className="bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-300 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider mb-3 inline-block border border-blue-200 dark:border-blue-800/50">Postulación a Mini-Hackathon</span>
         <h2 className="text-2xl font-black text-gray-950 dark:text-gray-50 mb-2">{selectedArenaEvent.title}</h2>
-        <p className="text-gray-700 dark:text-gray-400 font-medium">Organizado por {selectedArenaEvent.company}</p>
+        <p className="text-gray-700 dark:text-gray-400 font-medium">Organizado por {selectedArenaEvent.organization}</p>
       </div>
 
       <form onSubmit={(e) => {
@@ -131,7 +131,7 @@ export function ApplyArenaView({
           <div className="space-y-4">
             <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800/50 mb-4">
               <h3 className="font-bold text-blue-950 dark:text-blue-300 mb-2">Modalidad: Equipo Propio</h3>
-              <p className="text-blue-900 dark:text-blue-400 text-sm">Crea tu equipo e invita a tus amigos usando sus correos o alias de Aura.</p>
+              <p className="text-blue-900 dark:text-blue-400 text-sm">Crea tu equipo e invita a tus amigos usando sus correos o alias de Evidentia.</p>
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-950 dark:text-gray-50 mb-1">Nombre del Equipo</label>

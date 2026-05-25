@@ -79,7 +79,7 @@ export function OnboardingProfileView({
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: appConfig?.appUrl || window.location.origin,
+        redirectTo: `${window.location.origin}${window.location.pathname}`, // sin hash
       },
     });
     if (error) setErrorMsg(error.message);
@@ -360,7 +360,7 @@ export function OnboardingProfileView({
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Tamaño de la empresa</label>
-                  <select value={onboardData.companySize || ''} onChange={(e) => setOnboardData({...onboardData, companySize: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none appearance-none">
+                  <select value={onboardData.organizationSize || ''} onChange={(e) => setOnboardData({...onboardData, organizationSize: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none appearance-none">
                     <option value="">Seleccionar...</option>
                     <option value="1-50">1 - 50 empleados</option>
                     <option value="51+">Más de 50</option>

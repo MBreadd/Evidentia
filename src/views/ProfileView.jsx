@@ -67,7 +67,7 @@ export function ProfileView({ user, setCurrentView }) {
   if (!user) return null;
 
   const isStudent = user.role === 'student';
-  const isCompany = user.role === 'company' || user.role === 'organization';
+  const isOrganization = user.role === 'organization' || user.role === 'organization';
 
   // Clases base para tarjetas de cristal
   const glassCard = "relative bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border border-white/40 dark:border-gray-800/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] rounded-2xl p-6 overflow-hidden";
@@ -127,7 +127,7 @@ export function ProfileView({ user, setCurrentView }) {
                     <h1 className="text-3xl font-black tracking-tight">
                       {user.full_name || user.name || 'profiles Evidentia'}
                     </h1>
-                    {isCompany && user.verified && (
+                    {isOrganization && user.verified && (
                       <ShieldCheck className="text-blue-500 w-6 h-6" title="Organización Verificada" />
                     )}
                   </div>
@@ -430,8 +430,8 @@ export function EditProfileView({ user, setUser, setCurrentView }) {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">Nombre de Empresa</label>
-                    <input type="text" value={user.name || user.company_name || ''} onChange={(e) => setUser({...user, name: e.target.value})} className={glassInput} />
+                    <label className="block text-sm font-semibold mb-2">Nombre de Organización</label>
+                    <input type="text" value={user.name || user.organization_name || ''} onChange={(e) => setUser({...user, name: e.target.value})} className={glassInput} />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-2">Industria</label>

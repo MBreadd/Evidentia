@@ -14,7 +14,7 @@ export default function ChallengeCard({ challenge, onDetails }) {
   } = challenge;
   const orgName = challenge.organization?.full_name ?? 'Organización';
   // Obtenemos el nombre de la empresa a través de la relación de Supabase
-  const companyName = challenge.profiles?.full_name || challenge.company || 'Empresa Anónima';
+  const organizationName = challenge.profiles?.full_name || challenge.organization || 'Empresa Anónima';
 
   // Convertimos el campo de texto de Supabase en un array de tags, separando por comas.
   // Si usas el antiguo 'tracks' o 'stack' del data.js, hace fallback automático.
@@ -34,7 +34,7 @@ export default function ChallengeCard({ challenge, onDetails }) {
       <header className="flex flex-col gap-1 mb-3">
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">
           <Building2 size={12} />
-          <span className="truncate">{companyName}</span>
+          <span className="truncate">{organizationName}</span>
           {difficulty && (
             <>
               <span className="text-gray-300 dark:text-gray-700">•</span>
