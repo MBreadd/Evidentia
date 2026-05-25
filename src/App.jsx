@@ -217,7 +217,7 @@ function AppContent() {
     fetchChallenges();
   }, []); 
   // 3. Limpieza automática del token en la URL después de loguearse
-  seEffect(() => {
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
         // Esperamos un tick para que checkProfileAndRoute termine primero
