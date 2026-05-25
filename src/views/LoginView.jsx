@@ -32,12 +32,15 @@ export default function LoginView({ loginForm, setLoginForm, setCurrentView, set
   };
 
   const handleGoogleLogin = async () => {
-    // Supabase redirige automáticamente. El chequeo de perfil lo haremos en App.jsx luego.
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    if (error) setErrorMsg(error.message);
-  };
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+
+  if (error) setErrorMsg(error.message);
+};
 
   // Función para ver si el usuario ya llenó sus datos en la base de datos
   const checkProfileAndRedirect = async (userId) => {

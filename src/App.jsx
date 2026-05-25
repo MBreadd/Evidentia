@@ -99,56 +99,68 @@ function AppContent() {
   // ==========================================
   // 2. EFECTO 1: MANEJO DE SESIÓN Y RUTAS
   // ==========================================
+  // ==========================================
+  // 2. EFECTO: MANEJO DE SESIÓN Y REDIRECCIONES OAUTH
+  // ==========================================
   useEffect(() => {
-    const checkProfileAndRoute = async (authUser) => {
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .maybeSingle();
-
-        if (profile && profile.full_name) {
-          setUser({ id: authUser.id, ...profile, email: authUser.email });
-          
-          setCurrentView((prevView) => {
-            if (['landing', 'login', 'onboarding_role', 'onboarding_profile'].includes(prevView)) {
-              return 'dashboard';
-            }
-            return prevView; 
-          });
-        } else {
-          const pendingRole = localStorage.getItem('evidentia_pending_role');
-          const finalRole = pendingRole || profile?.role; 
-          
-          setOnboardData(prev => ({
-            ...prev,
-            email: authUser.email,
-            name: authUser.user_metadata?.full_name || profile?.full_name || prev.name || '',
-            avatar: authUser.user_metadata?.avatar_url || profile?.avatar_url || prev.avatar || null
-          }));
-
-          if (finalRole) {
-            setOnboardRole(finalRole);
-            setCurrentView('onboarding_profile'); 
-          } else {
-            setCurrentView('onboarding_role');
-          }
-        }
-      } catch (err) {
-        console.error("Error interno al verificar perfil:", err);
-      } finally {
+    // 1. Manejar el evento de sesión
+    const handleSession = async (session) => {
+      if (session) {
+        await checkProfileAndRoute(session.user);
+      } else {
         setIsCheckingSession(false);
       }
     };
 
+    // 2. Verificar sesión al cargar
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        checkProfileAndRoute(session.user);
-      } else {
-        setIsCheckingSession(false); 
+      handleSession(session);
+    });
+
+    // 3. Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session) handleSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setCurrentView('landing');
       }
     });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Función separada para evitar duplicar código
+  const checkProfileAndRoute = async (authUser) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (profile && profile.full_name) {
+        setUser({ id: authUser.id, ...profile, email: authUser.email });
+        // Si el usuario ya tiene perfil, lo mandamos al dashboard
+        if (['landing', 'login', 'onboarding_role', 'onboarding_profile'].includes(currentViewRef.current)) {
+           setCurrentView('dashboard');
+        }
+      } else {
+        // Lógica de onboarding
+        const finalRole = localStorage.getItem('evidentia_pending_role') || profile?.role;
+        if (finalRole) {
+          setOnboardRole(finalRole);
+          setCurrentView('onboarding_profile');
+        } else {
+          setCurrentView('onboarding_role');
+        }
+      }
+    } catch (err) {
+      console.error("Error:", err);
+    } finally {
+      setIsCheckingSession(false);
+    }
+  };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
