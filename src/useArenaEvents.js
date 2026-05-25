@@ -9,16 +9,19 @@ export function useArenaEvents() {
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
+      console.log('Fetching arena events from Supabase...');
       const { data, error: err } = await supabase
         .from('arena_events')
         .select('*')
-        .eq('status', 'active')
         .order('start_date', { ascending: true });
 
+      console.log('Arena events fetched:', data);
+      console.log('Error:', err);
+
       if (err) throw err;
-      
+
       setEvents(data || []);
     } catch (err) {
       console.error('Error fetching arena events:', err);

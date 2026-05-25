@@ -1,7 +1,8 @@
-import React from 'react';
-import { Building2, Trophy, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, Trophy, Clock, ChevronDown } from 'lucide-react';
 
 export default function ChallengeCard({ challenge, onDetails }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   // Extraemos las propiedades, soportando la base de datos de Supabase y datos legacy
   const { 
     title, 
@@ -11,7 +12,7 @@ export default function ChallengeCard({ challenge, onDetails }) {
     technical_requirements,
     difficulty 
   } = challenge;
-
+  const orgName = challenge.organization?.full_name ?? 'Organización';
   // Obtenemos el nombre de la empresa a través de la relación de Supabase
   const companyName = challenge.profiles?.full_name || challenge.company || 'Empresa Anónima';
 
@@ -26,7 +27,7 @@ export default function ChallengeCard({ challenge, onDetails }) {
 
   return (
     <article 
-      className="bg-white dark:bg-gray-900 p-5 rounded-md border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors cursor-pointer flex flex-col h-full shadow-sm"
+      className="bg-white dark:bg-gray-950 p-5 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors cursor-pointer flex flex-col h-full shadow-none"
       onClick={onDetails}
     >
       {/* Encabezado: Empresa, Dificultad y Título */}

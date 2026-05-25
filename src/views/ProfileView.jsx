@@ -8,7 +8,7 @@ import githubLogo from '../assets/github-logo.png';
 import linkedinLogo from '../assets/linkedin-logo.png';
 import { useTheme } from '../useTheme';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
-
+import { supabase, appConfig } from '../supabaseClient';
 // ==========================================
 // COMPONENTE: RADAR DE HABILIDADES (GLASSMORPHISM)
 // ==========================================
@@ -125,7 +125,7 @@ export function ProfileView({ user, setCurrentView }) {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h1 className="text-3xl font-black tracking-tight">
-                      {user.full_name || user.name || 'Usuario Aura'}
+                      {user.full_name || user.name || 'profiles Evidentia'}
                     </h1>
                     {isCompany && user.verified && (
                       <ShieldCheck className="text-blue-500 w-6 h-6" title="Organización Verificada" />
@@ -221,7 +221,7 @@ export function ProfileView({ user, setCurrentView }) {
             
             {/* Gamificación & Estadísticas */}
             <div className={glassCard}>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-6">Métricas Aura</h3>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-6">Métricas Evidentia</h3>
               
               {isStudent ? (
                 <div className="space-y-6">
@@ -308,6 +308,30 @@ export function EditProfileView({ user, setUser, setCurrentView }) {
   const isStudent = user.role === 'student';
   const glassInput = "w-full px-4 py-3 border border-gray-200 dark:border-gray-700/50 rounded-xl bg-white/50 dark:bg-gray-900/50 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 backdrop-blur-sm transition-all";
   const glassCard = "bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border border-white/40 dark:border-gray-800/60 shadow-sm rounded-2xl p-6";
+  const handleSave = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: user.full_name,
+        career: user.career,
+        university: user.university,
+        bio: user.bio,
+        github_url: user.github_url,
+        linkedin_url: user.linkedin_url,
+        portfolio_url: user.portfolio_url,
+        skills: user.skills // Supabase convierte el array a JSONB automáticamente
+      })
+      .eq('id', user.id);
+
+    if (error) throw error;
+    
+    // Éxito: volver a la vista de perfil
+    setCurrentView('profile');
+  } catch (error) {
+    console.error('Error guardando perfil:', error.message);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] transition-colors pb-12 relative">
@@ -434,13 +458,13 @@ export function EditProfileView({ user, setUser, setCurrentView }) {
         {/* Botones de Acción Globales */}
         <div className="flex justify-end gap-3 pt-4">
           <button 
-            onClick={() => setCurrentView('profile')}
+            onClick={handleSave}
             className="px-6 py-3 rounded-xl font-bold text-sm bg-white/50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all backdrop-blur-sm"
           >
             Cancelar
           </button>
           <button 
-            onClick={() => setCurrentView('profile')}
+            onClick={handleSave}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:scale-105 transition-transform shadow-lg"
           >
             <Save size={16} /> Guardar Cambios

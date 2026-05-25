@@ -65,6 +65,20 @@ export default function ArenaTab({ user, setCurrentView, setSelectedArenaEvent }
 
   const handleJoinSolo = async (event) => {
     try {
+      // Verificar si el usuario ya es participante
+      const { data: existing, error: checkError } = await supabase
+        .from('arena_participants')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      if (existing) {
+        alert('Ya estás registrado en este evento.');
+        return;
+      }
+
       const { error } = await supabase.from('arena_participants').insert({
         event_id: event.id,
         user_id: user.id,
@@ -89,16 +103,29 @@ export default function ArenaTab({ user, setCurrentView, setSelectedArenaEvent }
 
     setCreatingTeam(true);
     try {
-      const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // Verificar si el usuario ya es participante
+      const { data: existing, error: checkError } = await supabase
+        .from('arena_participants')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      if (existing) {
+        alert('Ya estás registrado en este evento.');
+        return;
+      }
 
       const { data: team, error: teamError } = await supabase
         .from('arena_teams')
-        .insert({
+        .insert([{
           event_id: event.id,
-          creator_id: user.id,
           team_name: teamForm.teamName,
-          team_code: teamCode,
-        })
+          team_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+          creator_id: user.id,
+          max_members: event.max_team_size || 4,
+        }])
         .select()
         .single();
 
@@ -138,6 +165,20 @@ export default function ArenaTab({ user, setCurrentView, setSelectedArenaEvent }
 
   const handleJoinRandom = async (event) => {
     try {
+      // Verificar si el usuario ya es participante
+      const { data: existing, error: checkError } = await supabase
+        .from('arena_participants')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      if (existing) {
+        alert('Ya estás registrado en este evento.');
+        return;
+      }
+
       const { error } = await supabase.from('arena_participants').insert({
         event_id: event.id,
         user_id: user.id,

@@ -36,7 +36,7 @@ export default function SkillsRadar({ skills = [] }) {
 
   return (
     <div className="w-full h-80 p-4 border border-gray-200 dark:border-gray-800 rounded-md bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm shadow-sm transition-colors duration-300">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={320}>
         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={chartData}>
           {/* Líneas del radar (gris claro) */}
           <PolarGrid stroke="#e5e7eb" />

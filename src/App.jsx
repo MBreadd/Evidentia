@@ -83,7 +83,7 @@ function AppContent() {
             return prevView; 
           });
         } else {
-          const pendingRole = localStorage.getItem('aura_pending_role');
+          const pendingRole = localStorage.getItem('evidentia_pending_role');
           const finalRole = pendingRole || profile?.role; 
           
           setOnboardData(prev => ({
@@ -199,7 +199,7 @@ function AppContent() {
                 
                 {/* Lado Izquierdo: Logo y Tabs */}
                 <div className="flex items-center gap-8">
-                  <span className="text-2xl font-black text-gray-950 dark:text-white cursor-pointer" onClick={() => setCurrentView('dashboard')}>AURA</span>
+                  <span className="text-2xl font-black text-gray-950 dark:text-white cursor-pointer" onClick={() => setCurrentView('dashboard')}>EVIDENTIA</span>
                   
                   {/* TABS SIEMPRE VISIBLES EN DESKTOP */}
                   <div className="hidden md:flex gap-1 bg-gray-50 dark:bg-gray-900 p-1 rounded-md border border-gray-200 dark:border-gray-800">

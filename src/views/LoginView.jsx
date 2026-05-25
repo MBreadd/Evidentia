@@ -68,7 +68,7 @@ export default function LoginView({ loginForm, setLoginForm, setCurrentView, set
 
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-950 dark:text-gray-50">Bienvenido de vuelta</h2>
-          <p className="text-gray-700 dark:text-gray-400 mt-2">Ingresa a tu cuenta de Aura</p>
+          <p className="text-gray-700 dark:text-gray-400 mt-2">Ingresa a tu cuenta de Evidentia</p>
         </div>
         
         <div className="space-y-3 mb-6">

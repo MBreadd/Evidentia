@@ -194,23 +194,26 @@ export default function DashboardView({
 
   // --- Sub-componente: Render Arena ---
   const renderArenaDashboard = () => {
-    if (user?.role !== 'student') {
-      return (
-        <div className="bg-yellow-50 dark:bg-yellow-950/30 border-l-4 border-yellow-400 dark:border-yellow-700 p-6 rounded-lg shadow-none">
-          <h3 className="font-bold text-yellow-900 dark:text-yellow-200">Arena Solo para Estudiantes</h3>
-          <p className="text-yellow-800 dark:text-yellow-300 text-sm mt-2">
-            La funcionalidad Arena está disponible solo para estudiantes.
-          </p>
-        </div>
-      );
-    }
+    const isOrganization = user?.role === 'organization' || user?.role === 'company';
 
     return (
-      <ArenaTab 
-        user={user} 
-        setCurrentView={setCurrentView}
-        setSelectedArenaEvent={setSelectedArenaEvent}
-      />
+      <div>
+        {isOrganization && (
+          <div className="mb-6 flex justify-end">
+            <button
+              onClick={() => setCurrentView('create_arena')}
+              className="flex items-center gap-2 bg-blue-950 dark:bg-blue-900 hover:bg-blue-900 dark:hover:bg-blue-800 text-white px-6 py-3 rounded-lg font-bold transition shadow-none hover:-translate-y-0.5"
+            >
+              <Plus size={18} /> Crear Mini-Hackathon
+            </button>
+          </div>
+        )}
+        <ArenaTab
+          user={user}
+          setCurrentView={setCurrentView}
+          setSelectedArenaEvent={setSelectedArenaEvent}
+        />
+      </div>
     );
   };
 
