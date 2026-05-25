@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { 
   ArrowLeft, Send, UploadCloud, FileText, Calendar, Award, 
   Code2, Building2, AlertTriangle, Users, Eye, CheckCircle, 
-  Star, ChevronDown, ChevronUp, Shield, Briefcase, X, FileBadge
+  ChevronDown, ChevronUp, Shield, Briefcase, X, FileBadge, Check, ExternalLink
 } from 'lucide-react';
 
 const PLAGIARISM_ALERT_STYLE = {
@@ -31,11 +31,10 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [evalForms, setEvalForms] = useState({});
   const [savingEval, setSavingEval] = useState({});
-  const [expandedEvalId, setExpandedEvalId] = useState(null);
   
-  // NUEVO: Estado para pestañas y visor de PDF
-  const [orgTab, setOrgTab] = useState('details'); // 'details' | 'submissions'
-  const [selectedPdfUrl, setSelectedPdfUrl] = useState(null);
+  // Estado para pestañas y Modal de Revisión
+  const [orgTab, setOrgTab] = useState('details'); 
+  const [activeReview, setActiveReview] = useState(null);
 
   // Datos del Reto
   const [orgName, setOrgName] = useState(
@@ -93,8 +92,12 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
         const profileMap = {};
         (profiles || []).forEach((p) => { profileMap[p.id] = p; });
+        
+        // Mejoramos la asignación de assets
         const assetMap = {};
-        (assets || []).forEach((a) => { assetMap[a.submission_id] = a; });
+        if (assets) {
+          assets.forEach((a) => { assetMap[a.submission_id] = a; });
+        }
 
         list.forEach((s) => {
           s.profiles = profileMap[s.user_id] || null;
@@ -151,13 +154,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
   useEffect(() => { loadCompanySubmissions(); }, [loadCompanySubmissions]);
 
-  useEffect(() => {
-    if (!canManageChallenge || submissions.length === 0) return;
-    const ids = submissions.map((s) => s.id);
-    const interval = setInterval(() => { loadEvaluations(ids); }, 12000);
-    return () => clearInterval(interval);
-  }, [canManageChallenge, submissions, loadEvaluations]);
-
   // --- MANEJADORES DE EVENTOS ---
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -212,13 +208,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
       setExistingAsset({ url: pdfUrl, type: 'pdf' });
       setExistingSubmission(subData);
 
-      try {
-        await supabase.functions.invoke('generate-embedding', {
-          body: { submission_id: subData.id, text: executiveSummary.trim(), challenge_id: selectedChallenge.id, user_id: session.user.id },
-        });
-      } catch (embedErr) {
-        console.error('generate-embedding failed:', embedErr);
-      }
     } catch (error) {
       console.error('Error al procesar la entrega:', error);
       setErrorMsg('Ocurrió un error al procesar el envío: ' + error.message);
@@ -250,20 +239,30 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
       
       setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, status: 'approved' } : s)));
       await loadEvaluations(submissions.map((s) => s.id));
-      setExpandedEvalId(null);
+      
+      setTimeout(() => setSavingEval((p) => ({ ...p, [submissionId]: false })), 500);
     } catch (err) {
       console.error('Error saving evaluation:', err);
       alert('Error: ' + err.message);
-    } finally {
       setSavingEval((p) => ({ ...p, [submissionId]: false }));
     }
+  };
+
+  const openReviewModal = (sub) => {
+    const evaluation = evaluationsMap[sub.id];
+    if (!evalForms[sub.id]) {
+      setEvalForms((p) => ({ 
+        ...p, 
+        [sub.id]: { score: evaluation?.score ?? '', feedback: evaluation?.textual_feedback || '' } 
+      }));
+    }
+    setActiveReview(sub);
   };
 
   if (!selectedChallenge) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600 dark:text-gray-400 font-medium mb-4">No se ha seleccionado ningún reto.</p>
-        <button onClick={() => setCurrentView('dashboard')} className="px-5 py-2 bg-blue-950 dark:bg-blue-900 text-white rounded-lg font-bold hover:bg-blue-900 dark:hover:bg-blue-800 transition shadow-sm">
+        <button onClick={() => setCurrentView('dashboard')} className="px-5 py-2 bg-blue-950 dark:bg-blue-900 text-white rounded-lg font-bold">
           Volver al Dashboard
         </button>
       </div>
@@ -273,27 +272,116 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 font-sans bg-white dark:bg-[#0a0a0a] min-h-screen">
       
-      {/* MODAL DEL VISOR DE PDF */}
-      {selectedPdfUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-6xl h-full rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800">
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-              <div className="flex items-center gap-2">
-                <FileText className="text-blue-600" size={20} />
-                <h3 className="font-black text-gray-900 dark:text-white">Visor de Documento Técnico</h3>
+      {/* MODAL DE REVISIÓN SPLIT-SCREEN */}
+      {activeReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-600">
+                  {activeReview.profiles?.avatar_url ? (
+                    <img src={activeReview.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-black text-blue-700 dark:text-blue-300">{(activeReview.profiles?.full_name || '?')[0].toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900 dark:text-white leading-tight">Revisión: {activeReview.profiles?.full_name || 'Estudiante'}</h3>
+                  <p className="text-xs text-gray-500 font-medium">Enviado el {formatDate(activeReview.submitted_at)}</p>
+                </div>
               </div>
-              <button 
-                onClick={() => setSelectedPdfUrl(null)} 
-                className="p-2 bg-gray-200 dark:bg-gray-800 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
+              
+              <div className="flex items-center gap-3">
+                {activeReview._asset?.url && (
+                  <a href={activeReview._asset.url} target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                    <ExternalLink size={16} /> Abrir PDF
+                  </a>
+                )}
+                <button onClick={() => setActiveReview(null)} className="p-2 bg-gray-200 dark:bg-gray-800 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-lg transition-colors ml-2">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
-            <iframe 
-              src={selectedPdfUrl} 
-              className="w-full flex-1 bg-gray-100 dark:bg-black" 
-              title="PDF Viewer"
-            />
+
+            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+              
+              {/* Panel Izquierdo */}
+              <div className="w-full lg:w-1/3 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto p-6 flex flex-col gap-6">
+                
+                {evaluationsMap[activeReview.id]?.plagiarism_flag && (
+                  <div style={PLAGIARISM_ALERT_STYLE} className="rounded-lg flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 font-bold">
+                      <AlertTriangle size={16} /> ADVERTENCIA DE SIMILITUD
+                    </div>
+                    <p className="text-xs text-gray-900 dark:text-gray-300 font-sans">
+                      {evaluationsMap[activeReview.id].ai_summary || 'Revisar entrega manual. Posible coincidencia con otras fuentes.'}
+                    </p>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <FileText size={14} /> Resumen Ejecutivo
+                  </h4>
+                  {/* CORRECCIÓN: break-words y overflow-x-hidden para que crezca verticalmente */}
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden shadow-inner max-h-[300px] overflow-y-auto">
+                    {activeReview.executive_summary || 'No se adjuntó resumen.'}
+                  </div>
+                </div>
+
+                <div className="mt-auto bg-blue-50 dark:bg-gray-800 p-5 rounded-xl border border-blue-100 dark:border-gray-700">
+                  <h4 className="text-sm font-black text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Award size={18} className="text-blue-600 dark:text-blue-400" /> Calificar Propuesta
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Puntaje Final (0-100)</label>
+                      <input 
+                        type="number" min="0" max="100" 
+                        value={evalForms[activeReview.id]?.score || ''} 
+                        onChange={(e) => setEvalForms((p) => ({ ...p, [activeReview.id]: { ...p[activeReview.id], score: e.target.value } }))} 
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-lg bg-white dark:bg-gray-900 outline-none focus:ring-2 focus:ring-blue-500 font-black text-blue-950 dark:text-blue-100" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Feedback Técnico</label>
+                      <textarea 
+                        value={evalForms[activeReview.id]?.feedback || ''} 
+                        placeholder="Detalla los puntos fuertes y oportunidades de mejora..." 
+                        onChange={(e) => setEvalForms((p) => ({ ...p, [activeReview.id]: { ...p[activeReview.id], feedback: e.target.value } }))} 
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 min-h-[120px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" 
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSaveEval(activeReview.id)} 
+                      disabled={savingEval[activeReview.id]} 
+                      className={`w-full py-3 text-white text-sm font-black uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${savingEval[activeReview.id] ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'}`}
+                    >
+                      {savingEval[activeReview.id] ? <><Check size={18}/> Guardado</> : (evaluationsMap[activeReview.id]?.score != null ? 'Actualizar Evaluación' : 'Guardar Evaluación')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Panel Derecho: Visor de PDF */}
+              <div className="w-full lg:w-2/3 bg-gray-100 dark:bg-black relative">
+                {activeReview._asset?.url ? (
+                  <iframe 
+                    src={activeReview._asset.url} 
+                    className="w-full h-full border-0" 
+                    title="PDF Viewer"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500 flex-col gap-3 p-6 text-center">
+                    <FileText size={48} className="opacity-20" />
+                    <p className="font-bold text-gray-700 dark:text-gray-300">No se pudo cargar el archivo PDF.</p>
+                    <p className="text-xs max-w-sm">Si el estudiante lo subió, verifica que las políticas de seguridad (RLS) en tu base de datos permitan a la empresa leer la tabla <code>submission_assets</code>.</p>
+                  </div>
+                )}
+              </div>
+
+            </div>
           </div>
         </div>
       )}
@@ -303,10 +391,8 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* COLUMNA PRINCIPAL */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* TABS DE NAVEGACIÓN PARA ORGANIZACIONES */}
           {canManageChallenge && (
             <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800 mb-2">
               <button 
@@ -324,7 +410,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
             </div>
           )}
 
-          {/* VISTA DE DETALLES (Default o Tab seleccionada) */}
           {(!canManageChallenge || orgTab === 'details') && (
             <div className="bg-white dark:bg-gray-900 p-8 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
               <header className="mb-8 border-b border-gray-200 dark:border-gray-800 pb-6">
@@ -332,57 +417,31 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                   <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-300 rounded-lg text-xs font-black uppercase tracking-wider border border-blue-200 dark:border-blue-800/50">
                     Nivel {selectedChallenge.difficulty || 'Intermedio'}
                   </span>
-                  <span className="px-3 py-1 bg-green-50 dark:bg-green-950/30 text-green-900 dark:text-green-300 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1 border border-green-200 dark:border-green-800/50">
-                    <Building2 size={12} /> {orgName}
-                  </span>
                 </div>
-                
                 <h1 className="text-3xl font-black text-gray-950 dark:text-white tracking-tight leading-tight mb-4">
                   {selectedChallenge.title}
                 </h1>
-
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tech, idx) => (
-                      <span key={idx} className="px-2.5 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300">
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </header>
-              
               <div className="space-y-8">
                 <div>
                   <h3 className="text-sm font-black text-gray-950 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Briefcase size={16} className="text-gray-400" /> Contexto y Desafío
                   </h3>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+                  {/* CORRECCIÓN: break-words en la descripción principal */}
+                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden">
                     {selectedChallenge.description}
                   </p>
                 </div>
-
-                {selectedChallenge.technical_requirements && (
-                  <div>
-                    <h3 className="text-sm font-black text-gray-950 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <Code2 size={16} className="text-gray-400" /> Requerimientos y Stack
-                    </h3>
-                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-5 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-line">
-                      {selectedChallenge.technical_requirements}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
 
-          {/* VISTA DE ENTREGAS (Solo Organización, diseño expandido) */}
           {(canManageChallenge && orgTab === 'submissions') && (
             <div className="bg-white dark:bg-gray-900 p-8 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm min-h-[500px]">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">Panel de Evaluaciones</h2>
-                  <p className="text-sm text-gray-500">Revisa, audita y califica el talento.</p>
+                  <p className="text-sm text-gray-500">Selecciona una entrega para revisar los detalles y calificar.</p>
                 </div>
                 <button onClick={() => loadCompanySubmissions()} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2">
                   Actualizar Datos
@@ -400,14 +459,12 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {submissions.map((sub) => {
                     const evaluation = evaluationsMap[sub.id];
-                    const form = evalForms[sub.id] || { score: evaluation?.score ?? '', feedback: evaluation?.textual_feedback || '' };
-                    const isEvalOpen = expandedEvalId === sub.id;
 
                     return (
-                      <div key={sub.id} className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                      <div key={sub.id} className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
                         <div>
                           <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm">
+                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-600">
                               {sub.profiles?.avatar_url ? (
                                 <img src={sub.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
                               ) : (
@@ -424,52 +481,14 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                               </div>
                             )}
                           </div>
-
-                          {sub.executive_summary && (
-                            <div className="mb-4">
-                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Resumen Ejecutivo</p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800">{sub.executive_summary}</p>
-                            </div>
-                          )}
-                          
-                          {evaluation?.plagiarism_flag === true && (
-                            <div style={PLAGIARISM_ALERT_STYLE} className="mb-4 rounded flex items-start gap-2">
-                              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                              <span className="leading-tight">SIMILITUD DETECTADA — {evaluation.ai_summary || 'Revisar entrega manual'}</span>
-                            </div>
-                          )}
                         </div>
 
-                        <div>
-                          {sub._asset?.url && (
-                            <button 
-                              onClick={(e) => { e.preventDefault(); setSelectedPdfUrl(sub._asset.url); }} 
-                              className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors mb-3 shadow-sm"
-                            >
-                              <Eye size={16} /> Leer Propuesta PDF
-                            </button>
-                          )}
-
-                          <button onClick={() => setExpandedEvalId(isEvalOpen ? null : sub.id)} className="w-full flex items-center justify-center gap-1 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition bg-white dark:bg-gray-900">
-                            {isEvalOpen ? <><ChevronUp size={14} /> Ocultar Feedback</> : <><Star size={14} /> Evaluar Solución</>}
-                          </button>
-
-                          {isEvalOpen && (
-                            <div className="mt-3 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-4 shadow-inner">
-                              <div>
-                                <label className="block text-xs font-black text-gray-600 dark:text-gray-400 mb-1">Puntaje (0-100)</label>
-                                <input type="number" min="0" max="100" value={form.score} onChange={(e) => setEvalForms((p) => ({ ...p, [sub.id]: { ...form, score: e.target.value } }))} className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-gray-50 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-black text-gray-600 dark:text-gray-400 mb-1">Feedback Técnico</label>
-                                <textarea value={form.feedback} placeholder="Detalla los puntos fuertes y de mejora..." onChange={(e) => setEvalForms((p) => ({ ...p, [sub.id]: { ...form, feedback: e.target.value } }))} className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-gray-50 dark:bg-gray-800 min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
-                              </div>
-                              <button onClick={() => handleSaveEval(sub.id)} disabled={savingEval[sub.id]} className={`w-full py-2.5 text-white text-xs font-black uppercase tracking-wider rounded-lg transition shadow-sm ${savingEval[sub.id] ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'}`}>
-                                {savingEval[sub.id] ? 'Procesando...' : evaluation?.score != null ? 'Actualizar Nota' : 'Guardar Evaluación'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button 
+                          onClick={() => openReviewModal(sub)} 
+                          className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors mt-2"
+                        >
+                          <Eye size={16} /> Abrir Revisión Completa
+                        </button>
                       </div>
                     );
                   })}
@@ -479,8 +498,7 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
           )}
         </div>
 
-        {/* COLUMNA LATERAL (Estadísticas y Entregas de Estudiante) */}
-        <div className="space-y-6 lg:sticky lg:top-24">
+        <div className="space-y-6 lg:sticky lg:top-24 hidden lg:block">
           <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
             <div className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="p-3 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-lg">
@@ -491,115 +509,9 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                 <p className="text-sm font-black text-gray-950 dark:text-white">{formatDate(selectedChallenge.deadline)}</p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="p-3 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 rounded-lg">
-                <Award size={20} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Incentivo</p>
-                <p className="text-sm font-black text-gray-950 dark:text-white">{selectedChallenge.reward || 'Certificación'}</p>
-              </div>
-            </div>
           </div>
-
-          {/* VISTAS DINÁMICAS SEGÚN ROL (ESTUDIANTE) */}
-          {user?.role === 'student' && (
-            checkingSubmission ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-950 dark:border-blue-400" />
-              </div>
-            ) : existingSubmission ? (
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-green-200 dark:border-green-800/50 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <CheckCircle size={24} className="text-green-600 dark:text-green-400" />
-                  <h3 className="text-lg font-bold text-gray-950 dark:text-gray-50">Propuesta Enviada</h3>
-                </div>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Estado</span>
-                    <span className="font-bold text-green-700 dark:text-green-300 uppercase text-xs">{existingSubmission.status}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Enviado</span>
-                    <span className="font-bold text-gray-900 dark:text-gray-100">{formatDate(existingSubmission.submitted_at)}</span>
-                  </div>
-                  {existingAsset?.url && (
-                    <button onClick={() => setSelectedPdfUrl(existingAsset.url)} className="w-full flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 font-bold text-xs mt-4 bg-blue-50 dark:bg-blue-950/20 py-2.5 rounded-lg border border-blue-100 dark:border-blue-900/50 transition">
-                      <FileText size={16} /> Ver mi documento procesado
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                <h3 className="text-lg font-black text-gray-950 dark:text-white mb-2 flex items-center gap-2">
-                  <Send size={18} className="text-blue-600 dark:text-blue-400" /> Entregar Solución
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-6">
-                  Tu documento será indexado y procesado para evaluación técnica y control de originalidad.
-                </p>
-
-                {errorMsg && (
-                  <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs rounded-lg mb-4 font-bold border border-red-200 dark:border-red-800/50">
-                    {errorMsg}
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmitSolution} className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-black text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2">Reporte (PDF) *</label>
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
-                      <div className="flex flex-col items-center justify-center text-center p-4">
-                        {pdfFile ? (
-                          <>
-                            <FileText className="text-blue-600 dark:text-blue-400 mb-2" size={28} />
-                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 max-w-[200px] truncate">{pdfFile.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">{(pdfFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                          </>
-                        ) : (
-                          <>
-                            <UploadCloud className="text-gray-400 group-hover:text-blue-500 transition-colors mb-2" size={28} />
-                            <p className="text-sm text-gray-700 dark:text-gray-300 font-bold">Seleccionar archivo</p>
-                            <p className="text-xs text-gray-500 mt-1">PDF estricto (Máx. 10MB)</p>
-                          </>
-                        )}
-                      </div>
-                      <input type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2">Resumen Ejecutivo *</label>
-                    <textarea
-                      value={executiveSummary}
-                      onChange={(e) => setExecutiveSummary(e.target.value)}
-                      required
-                      minLength={50}
-                      className="w-full p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none min-h-[90px] text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400"
-                      placeholder="Describe de forma concisa tu estrategia (mín. 50 caracteres)..."
-                    />
-                  </div>
-
-                  <button type="submit" disabled={isSubmitting} className={`w-full py-3 text-white font-black rounded-lg transition-all uppercase tracking-wider text-xs shadow-sm ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-950 hover:bg-blue-900 dark:bg-blue-900 dark:hover:bg-blue-800'}`}>
-                    {isSubmitting ? 'Procesando Envío...' : 'Confirmar Envío'}
-                  </button>
-                </form>
-              </div>
-            )
-          )}
-
-          {/* MODO AUDITORÍA (Si es una organización, pero no la dueña de este reto) */}
-          {isOrganizationUser && !canManageChallenge && (
-            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 text-center shadow-sm">
-              <Shield size={28} className="text-blue-500 dark:text-blue-400 mx-auto mb-3" />
-              <h4 className="font-black text-gray-950 dark:text-white text-sm mb-2">Modo Auditoría</h4>
-              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                Como entidad verificada, puedes explorar el alcance técnico y métricas de este reto. La revisión de entregables está restringida exclusivamente al organizador oficial.
-              </p>
-            </div>
-          )}
         </div>
+
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { ProfileView, EditProfileView } from './views/ProfileView';
 import ChallengeDetailView from './views/ChallengeDetailView';
 import { CreateArenaView, ApplyArenaView } from './views/ArenaView';
 
+
 export default function App() {
   React.useEffect(() => {
     document.documentElement.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -61,6 +62,40 @@ function AppContent() {
     currentViewRef.current = currentView;
   }, [currentView]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // ==========================================
+  // ENRUTAMIENTO NATIVO (HASH ROUTER)
+  // ==========================================
+  
+  // 1. Escuchar los botones de Adelante/Atrás del mouse y el navegador
+  useEffect(() => {
+    const syncStateFromUrl = () => {
+      // Extraemos la vista de la URL (ej: "#/dashboard" -> "dashboard")
+      const hash = window.location.hash.replace('#/', '');
+      
+      // Si hay un hash válido en la URL, actualizamos la vista
+      if (hash) {
+        setCurrentView(hash);
+      }
+    };
+
+    // Ejecutar al montar por si el usuario entra con un enlace directo
+    syncStateFromUrl();
+
+    // Escuchar el evento nativo de cambio de hash
+    window.addEventListener('hashchange', syncStateFromUrl);
+    return () => window.removeEventListener('hashchange', syncStateFromUrl);
+  }, []); // Solo se ejecuta al montar
+
+  // 2. Actualizar la URL dinámicamente cuando cambia currentView
+  useEffect(() => {
+    const currentHash = window.location.hash.replace('#/', '');
+    
+    // Si la vista actual es distinta a la URL, empujamos el historial
+    if (currentView !== currentHash) {
+      // Usamos pushState para no disparar el 'hashchange' y crear un bucle
+      window.history.pushState(null, '', `#/${currentView}`);
+    }
+  }, [currentView]);
   // ==========================================
   // 2. EFECTO 1: MANEJO DE SESIÓN Y RUTAS
   // ==========================================
