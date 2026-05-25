@@ -28,7 +28,11 @@ export function OnboardingRoleView({ setOnboardRole, setCurrentView }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
         {/* Tarjeta Estudiante */}
         <div 
-          onClick={() => { setOnboardRole('student'); setCurrentView('onboarding_profile'); }}
+          onClick={() => {
+            setOnboardRole('student');
+            localStorage.setItem('evidentia_pending_role', 'student');
+            setCurrentView('onboarding_profile');
+          }}
           className="bg-white/80 dark:bg-gray-900/60 backdrop-blur-xl p-10 rounded-2xl border border-gray-200/60 dark:border-gray-800/60 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-xl hover:-translate-y-1 cursor-pointer transition-all duration-300 text-center group"
         >
           <div className="w-20 h-20 bg-blue-50/50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-100/50 dark:group-hover:bg-blue-800/30 transition-colors border border-blue-100/50 dark:border-blue-800/30">
@@ -40,7 +44,11 @@ export function OnboardingRoleView({ setOnboardRole, setCurrentView }) {
 
         {/* Tarjeta Empresa */}
         <div 
-          onClick={() => { setOnboardRole('organization'); setCurrentView('onboarding_profile'); }}
+          onClick={() => {
+            setOnboardRole('organization');
+            localStorage.setItem('evidentia_pending_role', 'organization');
+            setCurrentView('onboarding_profile');
+          }}
           className="bg-white/80 dark:bg-gray-900/60 backdrop-blur-xl p-10 rounded-2xl border border-gray-200/60 dark:border-gray-800/60 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-xl hover:-translate-y-1 cursor-pointer transition-all duration-300 text-center group"
         >
           <div className="w-20 h-20 bg-blue-50/50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-100/50 dark:group-hover:bg-blue-800/30 transition-colors border border-blue-100/50 dark:border-blue-800/30">
@@ -67,6 +75,8 @@ export function OnboardingProfileView({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isGoogleUser, setIsGoogleUser] = useState(false);
+  
+  const effectiveRole = onboardRole || localStorage.getItem('evidentia_pending_role');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -117,10 +127,10 @@ export function OnboardingProfileView({
       // 2. Inserción en tabla profiles
       const profileData = {
         id: userId,
-        role: onboardRole,
+        role: effectiveRole,
         full_name: onboardData.name, 
         avatar_url: onboardData.avatar, // TODO: Implementar subida a Supabase Storage
-        career: onboardRole === 'student' ? onboardData.career : null,
+        career: effectiveRole === 'student' ? onboardData.career : null,
         linkedin_url: onboardData.linkedin,
         github_url: onboardData.github,
         portfolio_url: onboardData.website,
@@ -132,7 +142,7 @@ export function OnboardingProfileView({
 
       // 3. Creación de Organización (Si aplica)
       let organizationIds = [];
-      if (onboardRole === 'organization') {
+      if (effectiveRole === 'organization') {
         const { data: org, error: orgError } = await supabase
           .from('organizations')
           .insert([{
@@ -207,7 +217,7 @@ export function OnboardingProfileView({
         <p className="text-gray-500 dark:text-gray-400 text-sm">
           {isGoogleUser ? 'Completa estos últimos datos para tu perfil de ' : 'Estás registrándote como '} 
           <span className="font-semibold text-blue-900 dark:text-blue-400">
-            {onboardRole === 'student' ? 'Joven Talento' : 'Empresa / ONG'}
+            {effectiveRole === 'student' ? 'Joven Talento' : 'Empresa / ONG'}
           </span>
         </p>
       </div>
@@ -283,14 +293,14 @@ export function OnboardingProfileView({
             
             <div className="flex-grow w-full">
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                {onboardRole === 'student' ? 'Nombre Completo o Alias' : 'Nombre de la Organización'} <span className="text-red-400">*</span>
+                {effectiveRole === 'student' ? 'Nombre Completo o Alias' : 'Nombre de la Organización'} <span className="text-red-400">*</span>
               </label>
-              <input type="text" value={onboardData.name || ''} onChange={(e) => setOnboardData({...onboardData, name: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" required placeholder={onboardRole === 'student' ? 'Ej. Alex Developer' : 'Ej. TechCorp SAC'} />
+              <input type="text" value={onboardData.name || ''} onChange={(e) => setOnboardData({...onboardData, name: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" required placeholder={effectiveRole === 'student' ? 'Ej. Alex Developer' : 'Ej. TechCorp SAC'} />
             </div>
           </div>
 
           {/* CAMPOS ESTUDIANTE */}
-          {onboardRole === 'student' && (
+          {effectiveRole === 'student' && (
             <div className="space-y-6 pt-2">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Especialidad <span className="text-red-400">*</span></label>
@@ -353,7 +363,7 @@ export function OnboardingProfileView({
           )}
 
           {/* CAMPOS EMPRESA */}
-          {onboardRole === 'organization' && (
+          {effectiveRole === 'organization' && (
             <div className="space-y-6 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
