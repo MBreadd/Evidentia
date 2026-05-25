@@ -117,14 +117,30 @@ function AppContent() {
         if (profile && profile.full_name) {
           setUser({ id: authUser.id, ...profile, email: authUser.email });
           
-          // FUERZA LA REDIRECCIÓN A DASHBOARD SI ESTAMOS LOGUEADOS
-          setCurrentView('dashboard');
-          window.location.hash = '#/dashboard'; 
+          // Solo redirigir si el usuario no estaba ya en una vista de configuración
+          if (['landing', 'login'].includes(currentViewRef.current)) {
+            setCurrentView('dashboard');
+            window.location.hash = '#/dashboard';
+          }
         } else {
-          // ... (mantén tu lógica de onboarding aquí)
           const pendingRole = localStorage.getItem('evidentia_pending_role');
           const finalRole = pendingRole || profile?.role; 
-          // ... (resto de tu lógica de onboarding)
+          
+          // Lógica de Onboarding
+          setOnboardData(prev => ({
+            ...prev,
+            email: authUser.email,
+            name: authUser.user_metadata?.full_name || profile?.full_name || ''
+          }));
+
+          if (finalRole) {
+            setOnboardRole(finalRole);
+            setCurrentView('onboarding_profile');
+            window.location.hash = '#/onboarding_profile';
+          } else {
+            setCurrentView('onboarding_role');
+            window.location.hash = '#/onboarding_role';
+          }
         }
       } catch (err) {
         console.error("Error:", err);
@@ -140,7 +156,7 @@ function AppContent() {
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setCurrentView('landing');
-        window.location.hash = ''; // Limpiar hash al salir
+        window.location.hash = ''; 
       }
     });
 

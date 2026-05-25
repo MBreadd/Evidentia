@@ -10,38 +10,28 @@ export default function LoginView({ loginForm, setLoginForm, setCurrentView, set
     setIsLoading(true);
     setErrorMsg('');
 
-    // signInWithPassword SOLO funciona si el usuario ya existe. Si no, da error.
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: loginForm.email,
       password: loginForm.password,
     });
 
     if (error) {
       setIsLoading(false);
-      // Personalizamos el error para que sea amigable
-      if (error.message.includes('Invalid login credentials')) {
-        setErrorMsg('El correo o la contraseña son incorrectos (o la cuenta no existe).');
-      } else {
-        setErrorMsg(error.message);
-      }
-      return;
-    }
-
-    // Si llega aquí, el login fue exitoso. Buscamos su perfil.
-    checkProfileAndRedirect(data.user.id);
+      setErrorMsg(error.message.includes('Invalid login credentials') 
+        ? 'El correo o la contraseña son incorrectos.' 
+        : error.message);
+    } 
   };
 
   const handleGoogleLogin = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin
-    }
-  });
-
-  if (error) setErrorMsg(error.message);
-};
-
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    // No necesitamos nada más aquí.
+  };
   // Función para ver si el usuario ya llenó sus datos en la base de datos
   const checkProfileAndRedirect = async (userId) => {
     const { data: profile, error } = await supabase
