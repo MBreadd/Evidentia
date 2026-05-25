@@ -95,9 +95,15 @@ export function OnboardingProfileView({
 
       // 1. Gestión de Autenticación
       if (isGoogleUser) {
-        const { data: { session } } = await supabase.auth.getSession();
-        userId = session?.user?.id;
-        if (!userId) throw new Error("Sesión de Google no encontrada.");
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          // Intentar refrescar si no hay sesión activa
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          userId = refreshed?.session?.user?.id;
+        } else {
+          userId = session?.user?.id;
+        }
+        if (!userId) throw new Error("No se pudo verificar tu sesión de Google. Intenta de nuevo.");
       } else {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: onboardData.email,
@@ -120,8 +126,9 @@ export function OnboardingProfileView({
         portfolio_url: onboardData.website,
       };
 
-      const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
-      if (profileError) throw profileError;
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert([profileData], { onConflict: 'id' });      if (profileError) throw profileError;
 
       // 3. Creación de Organización (Si aplica)
       let organizationIds = [];

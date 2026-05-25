@@ -142,7 +142,7 @@ export function ProfileView({ user, setCurrentView }) {
                     )}
                   </p>
                   
-                  {isCompany && user.website && (
+                  {isOrganization && user.website && (
                     <a href={user.website} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 mt-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
                       <LinkIcon size={14} /> {user.website.replace(/^https?:\/\//, '')}
                     </a>
