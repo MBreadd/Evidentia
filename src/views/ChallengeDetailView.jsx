@@ -16,7 +16,6 @@ const PLAGIARISM_ALERT_STYLE = {
 };
 
 export default function ChallengeDetailView({ selectedChallenge, setCurrentView, user }) {
-  // Estados para Estudiantes
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,23 +24,20 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
   const [existingAsset, setExistingAsset] = useState(null);
   const [checkingSubmission, setCheckingSubmission] = useState(true);
 
-  // Estados para Organización
   const [submissions, setSubmissions] = useState([]);
   const [evaluationsMap, setEvaluationsMap] = useState({});
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [evalForms, setEvalForms] = useState({});
   const [savingEval, setSavingEval] = useState({});
   
-  // Estado para pestañas y Modal de Revisión
   const [orgTab, setOrgTab] = useState('details'); 
   const [activeReview, setActiveReview] = useState(null);
 
-  // Datos del Reto
   const [orgName, setOrgName] = useState(
     selectedChallenge?.profiles?.full_name || selectedChallenge?.organization || 'Organización'
   );
 
-  const isOrganizationUser = user?.role === 'organization' || user?.role === 'organization';
+  const isOrganizationUser = user?.role === 'organization';
   const canManageChallenge = isOrganizationUser && !!selectedChallenge?.organization_id && selectedChallenge.organization_id === user?.id;
   const tags = selectedChallenge?.tech_stack ? selectedChallenge.tech_stack.split(',').map(t => t.trim()).filter(Boolean) : [];
 
@@ -50,21 +46,13 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
     return new Date(dateString).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  // --- LÓGICA DE ORGANIZACIÓN ---
   const loadEvaluations = useCallback(async (submissionIds) => {
-    if (!submissionIds.length) {
-      setEvaluationsMap({});
-      return;
-    }
+    if (!submissionIds.length) { setEvaluationsMap({}); return; }
     const { data: evals, error } = await supabase
       .from('evaluations')
       .select('id, submission_id, score, textual_feedback, plagiarism_flag, ai_summary')
       .in('submission_id', submissionIds);
-    
-    if (error) {
-      console.error('Error cargando evaluaciones:', error);
-      return;
-    }
+    if (error) { console.error('Error cargando evaluaciones:', error); return; }
     const map = {};
     (evals || []).forEach((ev) => { map[ev.submission_id] = ev; });
     setEvaluationsMap(map);
@@ -79,7 +67,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
         .select('*')
         .eq('challenge_id', selectedChallenge.id)
         .order('submitted_at', { ascending: false });
-      
       if (error) throw error;
 
       const list = subs || [];
@@ -89,20 +76,11 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
           userIds.length ? supabase.from('profiles').select('id, full_name, career, avatar_url').in('id', userIds) : Promise.resolve({ data: [] }),
           supabase.from('submission_assets').select('*').in('submission_id', list.map((s) => s.id)),
         ]);
-
         const profileMap = {};
         (profiles || []).forEach((p) => { profileMap[p.id] = p; });
-        
-        // Mejoramos la asignación de assets
         const assetMap = {};
-        if (assets) {
-          assets.forEach((a) => { assetMap[a.submission_id] = a; });
-        }
-
-        list.forEach((s) => {
-          s.profiles = profileMap[s.user_id] || null;
-          s._asset = assetMap[s.id] || null;
-        });
+        if (assets) { assets.forEach((a) => { assetMap[a.submission_id] = a; }); }
+        list.forEach((s) => { s.profiles = profileMap[s.user_id] || null; s._asset = assetMap[s.id] || null; });
       }
 
       setSubmissions(list);
@@ -114,7 +92,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
     }
   }, [canManageChallenge, selectedChallenge?.id, loadEvaluations]);
 
-  // --- EFECTOS ---
   useEffect(() => {
     if (selectedChallenge?.organization?.full_name) {
       setOrgName(selectedChallenge.organization.full_name);
@@ -125,18 +102,12 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
   }, [selectedChallenge]);
 
   useEffect(() => {
-    if (user?.role !== 'student' || !selectedChallenge?.id) {
-      setCheckingSubmission(false);
-      return;
-    }
+    if (user?.role !== 'student' || !selectedChallenge?.id) { setCheckingSubmission(false); return; }
     const check = async () => {
       try {
         const { data: sub, error } = await supabase
-          .from('submissions')
-          .select('*')
-          .eq('challenge_id', selectedChallenge.id)
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .from('submissions').select('*')
+          .eq('challenge_id', selectedChallenge.id).eq('user_id', user.id).maybeSingle();
         if (error) throw error;
         if (sub) {
           setExistingSubmission(sub);
@@ -154,7 +125,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
   useEffect(() => { loadorganizationSubmissions(); }, [loadorganizationSubmissions]);
 
-  // --- MANEJADORES DE EVENTOS ---
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -192,14 +162,8 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
       const { data: subData, error: subError } = await supabase
         .from('submissions')
-        .insert([{
-          challenge_id: selectedChallenge.id,
-          user_id: session.user.id,
-          executive_summary: executiveSummary.trim(),
-          status: 'submitted',
-        }])
-        .select()
-        .single();
+        .insert([{ challenge_id: selectedChallenge.id, user_id: session.user.id, executive_summary: executiveSummary.trim(), status: 'submitted' }])
+        .select().single();
       if (subError) throw subError;
 
       const { error: assetError } = await supabase.from('submission_assets').insert([{ submission_id: subData.id, type: 'pdf', url: pdfUrl }]);
@@ -207,7 +171,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
       setExistingAsset({ url: pdfUrl, type: 'pdf' });
       setExistingSubmission(subData);
-
     } catch (error) {
       console.error('Error al procesar la entrega:', error);
       setErrorMsg('Ocurrió un error al procesar el envío: ' + error.message);
@@ -223,23 +186,18 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
       alert('Ingresa un puntaje válido entre 0 y 100.');
       return;
     }
-
     setSavingEval((p) => ({ ...p, [submissionId]: true }));
     try {
       const existing = evaluationsMap[submissionId];
       const evalPayload = { submission_id: submissionId, evaluator_user_id: user.id, score: scoreNum, textual_feedback: form.feedback || '' };
-
       if (existing?.id) {
         await supabase.from('evaluations').update(evalPayload).eq('id', existing.id).throwOnError();
       } else {
         await supabase.from('evaluations').insert([evalPayload]).throwOnError();
       }
-
       await supabase.from('submissions').update({ status: 'approved' }).eq('id', submissionId).throwOnError();
-      
       setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, status: 'approved' } : s)));
       await loadEvaluations(submissions.map((s) => s.id));
-      
       setTimeout(() => setSavingEval((p) => ({ ...p, [submissionId]: false })), 500);
     } catch (err) {
       console.error('Error saving evaluation:', err);
@@ -251,10 +209,7 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
   const openReviewModal = (sub) => {
     const evaluation = evaluationsMap[sub.id];
     if (!evalForms[sub.id]) {
-      setEvalForms((p) => ({ 
-        ...p, 
-        [sub.id]: { score: evaluation?.score ?? '', feedback: evaluation?.textual_feedback || '' } 
-      }));
+      setEvalForms((p) => ({ ...p, [sub.id]: { score: evaluation?.score ?? '', feedback: evaluation?.textual_feedback || '' } }));
     }
     setActiveReview(sub);
   };
@@ -271,11 +226,11 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 font-sans bg-white dark:bg-[#0a0a0a] min-h-screen">
-      
-      {/* MODAL DE REVISIÓN SPLIT-SCREEN */}
+
+      {/* MODAL DE REVISIÓN */}
       {activeReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800">
             
             <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 shrink-0">
               <div className="flex items-center gap-3">
@@ -291,7 +246,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                   <p className="text-xs text-gray-500 font-medium">Enviado el {formatDate(activeReview.submitted_at)}</p>
                 </div>
               </div>
-              
               <div className="flex items-center gap-3">
                 {activeReview._asset?.url && (
                   <a href={activeReview._asset.url} target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 hover:underline">
@@ -305,10 +259,7 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
             </div>
 
             <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-              
-              {/* Panel Izquierdo */}
               <div className="w-full lg:w-1/3 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto p-6 flex flex-col gap-6">
-                
                 {evaluationsMap[activeReview.id]?.plagiarism_flag && (
                   <div style={PLAGIARISM_ALERT_STYLE} className="rounded-lg flex flex-col gap-2 shadow-sm">
                     <div className="flex items-center gap-2 font-bold">
@@ -319,68 +270,61 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                     </p>
                   </div>
                 )}
-
                 <div>
                   <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                     <FileText size={14} /> Resumen Ejecutivo
                   </h4>
-                  {/* CORRECCIÓN: break-words y overflow-x-hidden para que crezca verticalmente */}
                   <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden shadow-inner max-h-[300px] overflow-y-auto">
                     {activeReview.executive_summary || 'No se adjuntó resumen.'}
                   </div>
                 </div>
-
                 <div className="mt-auto bg-blue-50 dark:bg-gray-800 p-5 rounded-xl border border-blue-100 dark:border-gray-700">
                   <h4 className="text-sm font-black text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Award size={18} className="text-blue-600 dark:text-blue-400" /> Calificar Propuesta
                   </h4>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Puntaje Final (0-20)</label>
-                      <input 
-                        type="number" min="0" max="20" 
-                        value={evalForms[activeReview.id]?.score || ''} 
-                        onChange={(e) => setEvalForms((p) => ({ ...p, [activeReview.id]: { ...p[activeReview.id], score: e.target.value } }))} 
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-lg bg-white dark:bg-gray-900 outline-none focus:ring-2 focus:ring-blue-500 font-black text-blue-950 dark:text-blue-100" 
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Puntaje Final (0-100)</label>
+                      <input
+                        type="number" min="0" max="100"
+                        value={evalForms[activeReview.id]?.score || ''}
+                        onChange={(e) => setEvalForms((p) => ({ ...p, [activeReview.id]: { ...p[activeReview.id], score: e.target.value } }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-lg bg-white dark:bg-gray-900 outline-none focus:ring-2 focus:ring-blue-500 font-black text-blue-950 dark:text-blue-100"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Feedback Técnico</label>
-                      <textarea 
-                        value={evalForms[activeReview.id]?.feedback || ''} 
-                        placeholder="Detalla los puntos fuertes y oportunidades de mejora..." 
-                        onChange={(e) => setEvalForms((p) => ({ ...p, [activeReview.id]: { ...p[activeReview.id], feedback: e.target.value } }))} 
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 min-h-[120px] outline-none focus:ring-2 focus:ring-blue-500 resize-none" 
+                      <textarea
+                        value={evalForms[activeReview.id]?.feedback || ''}
+                        placeholder="Detalla los puntos fuertes y oportunidades de mejora..."
+                        onChange={(e) => setEvalForms((p) => ({ ...p, [activeReview.id]: { ...p[activeReview.id], feedback: e.target.value } }))}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 min-h-[120px] outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       />
                     </div>
-                    <button 
-                      onClick={() => handleSaveEval(activeReview.id)} 
-                      disabled={savingEval[activeReview.id]} 
+                    <button
+                      onClick={() => handleSaveEval(activeReview.id)}
+                      disabled={savingEval[activeReview.id]}
                       className={`w-full py-3 text-white text-sm font-black uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center justify-center gap-2 ${savingEval[activeReview.id] ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'}`}
                     >
-                      {savingEval[activeReview.id] ? <><Check size={18}/> Guardado</> : (evaluationsMap[activeReview.id]?.score != null ? 'Actualizar Evaluación' : 'Guardar Evaluación')}
+                      {savingEval[activeReview.id]
+                        ? <><Check size={18} /> Guardado</>
+                        : (evaluationsMap[activeReview.id]?.score != null ? 'Actualizar Evaluación' : 'Guardar Evaluación')}
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Panel Derecho: Visor de PDF */}
               <div className="w-full lg:w-2/3 bg-gray-100 dark:bg-black relative">
                 {activeReview._asset?.url ? (
-                  <iframe 
-                    src={activeReview._asset.url} 
-                    className="w-full h-full border-0" 
-                    title="PDF Viewer"
-                  />
+                  <iframe src={activeReview._asset.url} className="w-full h-full border-0" title="PDF Viewer" />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-500 flex-col gap-3 p-6 text-center">
                     <FileText size={48} className="opacity-20" />
                     <p className="font-bold text-gray-700 dark:text-gray-300">No se pudo cargar el archivo PDF.</p>
-                    <p className="text-xs max-w-sm">Si el estudiante lo subió, verifica que las políticas de seguridad (RLS) en tu base de datos permitan a la empresa leer la tabla <code>submission_assets</code>.</p>
+                    <p className="text-xs max-w-sm">Verifica que las políticas RLS permitan a la empresa leer <code>submission_assets</code>.</p>
                   </div>
                 )}
               </div>
-
             </div>
           </div>
         </div>
@@ -392,16 +336,16 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
-          
+
           {canManageChallenge && (
             <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800 mb-2">
-              <button 
+              <button
                 onClick={() => setOrgTab('details')}
                 className={`pb-3 text-sm font-black uppercase tracking-wider transition-colors ${orgTab === 'details' ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
               >
                 Detalles del Reto
               </button>
-              <button 
+              <button
                 onClick={() => setOrgTab('submissions')}
                 className={`pb-3 text-sm font-black uppercase tracking-wider transition-colors flex items-center gap-2 ${orgTab === 'submissions' ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
               >
@@ -427,7 +371,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                   <h3 className="text-sm font-black text-gray-950 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Briefcase size={16} className="text-gray-400" /> Contexto y Desafío
                   </h3>
-                  {/* CORRECCIÓN: break-words en la descripción principal */}
                   <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden">
                     {selectedChallenge.description}
                   </p>
@@ -436,7 +379,83 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
             </div>
           )}
 
-          {(canManageChallenge && orgTab === 'submissions') && (
+          {/* FORMULARIO DE ENTREGA - Solo estudiantes */}
+          {user?.role === 'student' && (
+            <div className="bg-white dark:bg-gray-900 p-8 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <h2 className="text-xl font-black text-gray-950 dark:text-white mb-6 flex items-center gap-2">
+                <Send size={20} className="text-blue-600" /> Tu Entrega
+              </h2>
+
+              {checkingSubmission ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900" />
+                </div>
+              ) : existingSubmission ? (
+                <div className="text-center py-8 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                  <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                  <h3 className="font-black text-green-800 dark:text-green-300 text-lg mb-1">¡Entrega Enviada!</h3>
+                  <p className="text-sm text-green-700 dark:text-green-400 mb-4">
+                    Estado: <span className="font-bold capitalize">{existingSubmission.status}</span>
+                  </p>
+                  {existingAsset?.url && (
+                    <a
+                      href={existingAsset.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <ExternalLink size={16} /> Ver mi PDF entregado
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitSolution} className="space-y-5">
+                  {errorMsg && (
+                    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800 font-medium">
+                      {errorMsg}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-black text-gray-900 dark:text-white mb-2 uppercase tracking-wider">
+                      Resumen Ejecutivo <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={executiveSummary}
+                      onChange={(e) => setExecutiveSummary(e.target.value)}
+                      placeholder="Describe brevemente tu solución: enfoque, metodología y resultado esperado..."
+                      className="w-full p-4 border border-gray-300 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none min-h-[140px] resize-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-gray-900 dark:text-white mb-2 uppercase tracking-wider">
+                      Propuesta en PDF <span className="text-red-500">*</span>
+                    </label>
+                    <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors bg-gray-50 dark:bg-gray-800/50">
+                      <UploadCloud size={32} className="text-gray-400 mb-2" />
+                      <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
+                        {pdfFile ? pdfFile.name : 'Haz clic para subir tu PDF (máx. 10MB)'}
+                      </span>
+                      <input type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-blue-950 dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-500 text-white py-4 rounded-xl font-black text-sm uppercase tracking-wider transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Enviando...</>
+                    ) : (
+                      <><Send size={18} /> Enviar Propuesta</>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {canManageChallenge && orgTab === 'submissions' && (
             <div className="bg-white dark:bg-gray-900 p-8 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm min-h-[500px]">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -449,7 +468,9 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
               </div>
 
               {loadingSubmissions ? (
-                <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900 dark:border-blue-400" /></div>
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900 dark:border-blue-400" />
+                </div>
               ) : submissions.length === 0 ? (
                 <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
                   <Users size={32} className="text-gray-400 mx-auto mb-3" />
@@ -459,32 +480,28 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {submissions.map((sub) => {
                     const evaluation = evaluationsMap[sub.id];
-
                     return (
                       <div key={sub.id} className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                        <div>
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-600">
-                              {sub.profiles?.avatar_url ? (
-                                <img src={sub.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-sm font-black text-blue-700 dark:text-blue-300">{(sub.profiles?.full_name || '?')[0].toUpperCase()}</span>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{sub.profiles?.full_name || 'Estudiante'}</p>
-                              <p className="text-xs text-gray-500 font-medium">{formatDate(sub.submitted_at)}</p>
-                            </div>
-                            {evaluation?.score != null && (
-                              <div className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-3 py-1 rounded-lg text-xs font-black border border-green-200 dark:border-green-800">
-                                Nota: {evaluation.score}
-                              </div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-600">
+                            {sub.profiles?.avatar_url ? (
+                              <img src={sub.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-sm font-black text-blue-700 dark:text-blue-300">{(sub.profiles?.full_name || '?')[0].toUpperCase()}</span>
                             )}
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{sub.profiles?.full_name || 'Estudiante'}</p>
+                            <p className="text-xs text-gray-500 font-medium">{formatDate(sub.submitted_at)}</p>
+                          </div>
+                          {evaluation?.score != null && (
+                            <div className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-3 py-1 rounded-lg text-xs font-black border border-green-200 dark:border-green-800">
+                              Nota: {evaluation.score}
+                            </div>
+                          )}
                         </div>
-
-                        <button 
-                          onClick={() => openReviewModal(sub)} 
+                        <button
+                          onClick={() => openReviewModal(sub)}
                           className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors mt-2"
                         >
                           <Eye size={16} /> Abrir Revisión Completa
@@ -511,7 +528,6 @@ export default function ChallengeDetailView({ selectedChallenge, setCurrentView,
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
