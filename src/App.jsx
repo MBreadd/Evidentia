@@ -86,7 +86,13 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', syncStateFromUrl);
   }, []); // Solo se ejecuta al montar
 
-
+  // Efecto para redirigir automáticamente si el usuario ya está logueado
+  useEffect(() => {
+    if (user && currentView === 'landing') {
+      setCurrentView('dashboard');
+      window.location.hash = '#/dashboard';
+    }
+  }, [user, currentView]);
 // 2. Actualizar la URL dinámicamente cuando cambia currentView
   useEffect(() => {
     const currentHash = window.location.hash.replace('#/', '');
@@ -112,6 +118,7 @@ function AppContent() {
           setUser({ id: authUser.id, ...profile, email: authUser.email });
           if (['landing', 'login', 'onboarding_role', 'onboarding_profile'].includes(currentViewRef.current)) {
             setCurrentView('dashboard');
+            window.location.hash = '#/dashboard';
           }
         } else {
           const pendingRole = localStorage.getItem('evidentia_pending_role');
